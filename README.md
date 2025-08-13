@@ -1,0 +1,2 @@
+# m3u8_downloader_rs
+一个RUST语言实现的下载m3u8视频的cli工具，使用ffpmeg合并成mp4文件
