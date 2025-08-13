@@ -1,0 +1,20 @@
+[package]
+name = "m3u8_downloader_rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.11", features = ["json", "stream"] }
+m3u8-rs = "6.0.0"
+aes = "0.8.3"
+cbc = "0.1.2"
+clap = { version = "4.4.6", features = ["derive"] }
+indicatif = "0.17.7"
+futures = "0.3.28"
+url = "2.4.1"
+anyhow = "1.0.75"
+log = "0.4.20"
+env_logger = "0.10.0"
+sha256 = "1.6.0"
+hex = "0.4.3"
