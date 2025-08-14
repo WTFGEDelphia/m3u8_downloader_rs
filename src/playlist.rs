@@ -53,7 +53,7 @@ pub async fn fetch_and_parse_playlist(
                 KeyInfo {
                     method: k.method.to_string(),
                     uri,
-                    iv: k.iv.as_ref().map(|i| hex::encode(i)),
+                    iv: k.iv.as_ref().map(hex::encode),
                 }
             });
             Ok((pl, final_url, key_info))
