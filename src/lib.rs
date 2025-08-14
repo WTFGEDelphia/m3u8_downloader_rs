@@ -5,9 +5,8 @@ pub mod downloader;
 pub mod crypto;
 pub mod merger;
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use log::{info, error};
-use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs;
 use url::Url;

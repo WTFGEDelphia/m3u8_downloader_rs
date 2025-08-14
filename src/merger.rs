@@ -1,5 +1,4 @@
 use anyhow::{Result, anyhow};
-use log::info;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
