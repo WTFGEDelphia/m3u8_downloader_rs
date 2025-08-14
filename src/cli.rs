@@ -2,7 +2,7 @@ use clap::Parser;
 use std::path::PathBuf;
 
 /// A multi-threaded M3U8 downloader implemented in Rust.
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
     /// The M3U8 URL to download.
@@ -36,6 +36,10 @@ pub struct Args {
     /// Custom HTTP header(s). E.g., -H "Cookie: mycookie"
     #[arg(short = 'H', long = "header", action = clap::ArgAction::Append)]
     pub headers: Vec<String>,
+
+    /// Start in GUI mode
+    #[arg(long, default_value = "true")]
+    pub gui: bool,
 }
 
 pub fn parse_args() -> Args {

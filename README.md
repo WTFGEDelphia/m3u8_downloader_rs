@@ -1,3 +1,4 @@
+
 # M3U8 下载器 (Rust 实现)
 
 一个高性能的多线程 M3U8 视频下载工具，使用 Rust 语言实现。支持 HLS 加密内容的解密和使用 FFmpeg 合并分段。采用模块化架构设计，代码结构清晰，易于维护和扩展。
@@ -35,7 +36,25 @@ cargo install --path .
 
 ## 使用方法
 
-### 基本用法
+### 图形界面模式
+
+直接运行程序（不带参数）或使用 `--gui` 参数启动图形界面：
+
+```bash
+m3u8_downloader_rs
+# 或
+m3u8_downloader_rs --gui
+```
+
+图形界面提供了所有命令行功能的可视化操作，包括：
+- M3U8 URL输入
+- 输出目录和文件名设置
+- 并发线程数调整
+- FFmpeg路径配置
+- 自定义HTTP头设置
+- 合并选项控制
+
+### 命令行模式
 
 ```bash
 m3u8_downloader_rs -u "https://example.com/video.m3u8" -o output_directory
@@ -56,6 +75,7 @@ OPTIONS:
     --no-merge                          跳过合并步骤
     --keep-segments                     合并后保留分段文件
     -H, --header <HEADER>...            自定义 HTTP 头，例如: -H "Cookie: value" -H "Referer: url"
+    --gui                               启动图形界面模式
     -h, --help                          显示帮助信息
     -V, --version                       显示版本信息
 ```

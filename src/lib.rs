@@ -1,6 +1,7 @@
 pub mod cli;
 pub mod crypto;
 pub mod downloader;
+pub mod gui;
 pub mod http;
 pub mod merger;
 pub mod playlist;

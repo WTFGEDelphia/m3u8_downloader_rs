@@ -18,3 +18,10 @@ log = "0.4.20"
 env_logger = "0.11.8"
 sha256 = "1.6.0"
 hex = "0.4.3"
+# GUI依赖
+egui = "0.27.2"
+eframe = { version = "0.27.2", features = ["persistence"] }
+rfd = "0.15.4"  # 文件对话框
+poll-promise = "0.3.0"  # 异步操作处理
+winapi = { version = "0.3.9", features = ["winuser", "windef"] }  # Windows API
+egui-chinese-font = "0.1.0"
