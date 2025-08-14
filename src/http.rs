@@ -1,6 +1,9 @@
 use anyhow::Result;
 use log::{debug, warn};
-use reqwest::{Client, header::{HeaderMap, HeaderName, HeaderValue}};
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue},
+    Client,
+};
 use std::time::Duration;
 
 /// 构建HTTP客户端，包含自定义请求头
@@ -20,13 +23,13 @@ pub fn build_http_client(custom_headers: &[String]) -> Result<Client> {
             warn!("Ignoring malformed header: {}", header);
         }
     }
-    
+
     debug!("Using HTTP headers: {:?}", headers);
 
     let client = Client::builder()
         .default_headers(headers)
         .timeout(Duration::from_secs(30))
         .build()?;
-    
+
     Ok(client)
 }
