@@ -152,6 +152,40 @@ async fn download_segment(
     key: Option<&[u8]>,
     iv: Option<&[u8]>,
 ) -> Result<()> {
+    const MAX_RETRIES: u8 = 3;
+    let mut delay = tokio::time::Duration::from_millis(100);
+    let mut last_error = None;
+    for attempt in 1..=MAX_RETRIES {
+        match try_download_segment(client.clone(), url, path, key, iv).await {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                // 只对网络相关错误重试
+                if is_retryable_error(&e) {
+                    if attempt < MAX_RETRIES {
+                        debug!("下载重试 {}/{} 失败 url:{}", attempt, MAX_RETRIES, url,);
+                        tokio::time::sleep(delay).await;
+                        delay = delay.saturating_mul(2); // 指数退避
+                        last_error = Some(e);
+                    } else {
+                        break;
+                    }
+                } else {
+                    return Err(e);
+                }
+            }
+        }
+    }
+    Err(last_error.unwrap_or_else(|| anyhow::anyhow!("下载重试{}次后失败", MAX_RETRIES)))
+}
+
+/// 支持重试下载
+async fn try_download_segment(
+    client: Arc<Client>,
+    url: &Url,
+    path: &Path,
+    key: Option<&[u8]>,
+    iv: Option<&[u8]>,
+) -> Result<()> {
     let mut response = client.get(url.clone()).send().await?.error_for_status()?;
     let mut encrypted_data = Vec::new();
 
@@ -169,4 +203,27 @@ async fn download_segment(
     file.write_all(&decrypted_data).await?;
 
     Ok(())
+}
+
+// 检查错误是否可重试
+fn is_retryable_error(error: &anyhow::Error) -> bool {
+    // 检查是否是 reqwest 错误
+    if let Some(reqwest_error) = error.downcast_ref::<reqwest::Error>() {
+        // 检查是否是网络错误或超时错误
+        if reqwest_error.is_timeout() || reqwest_error.is_connect() {
+            return true;
+        }
+        // 检查状态码
+        if let Some(status) = reqwest_error.status() {
+            // 5xx 服务器错误是可重试的
+            if status.is_server_error() {
+                return true;
+            }
+            // 429 Too Many Requests 是可重试的
+            if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                return true;
+            }
+        }
+    }
+    false
 }
