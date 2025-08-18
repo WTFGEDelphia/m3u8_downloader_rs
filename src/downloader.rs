@@ -51,14 +51,23 @@ pub async fn download_segments(
         segments_info.push((i, segment_url, output_path));
     }
 
-    let base_url_clone = base_url.clone();
+    // 获取密钥和IV
+    let (key, iv) = match get_key_iv(client.clone(), base_url.clone(), key_info.clone()).await {
+        Ok((k, v)) => (k, v),
+        Err(e) => {
+            // 如果获取密钥失败，返回错误
+            return vec![Err(e)];
+        }
+    };
 
     let fetches = stream::iter(segments_info)
-        .map(|(i, segment_url, output_path)| {
+        .map(|(_i, segment_url, output_path)| {
             let client = client.clone();
             let pb_clone = pb.clone();
-            let key_info_clone = key_info.clone();
-            let base_url = base_url_clone.clone();
+            // 克隆密钥和IV，因为它们需要在异步闭包中使用
+            // 这是必要的，因为 tokio::spawn 创建的任务需要 'static 生命周期
+            let key_clone = key.clone();
+            let iv_clone = iv.clone();
 
             tokio::spawn(async move {
                 if fs::metadata(&output_path).await.is_ok() {
@@ -67,55 +76,16 @@ pub async fn download_segments(
                     return Ok(());
                 }
 
-                let (key, iv) = if let Some(ki) = key_info_clone {
-                    let key_url = match Url::parse(&ki.uri) {
-                        Ok(url) => url,
-                        Err(_) => {
-                            // 尝试将key URI作为相对URL处理
-                            match base_url.join(&ki.uri) {
-                                Ok(url) => url,
-                                Err(e) => {
-                                    return Err(anyhow!(
-                                        "无法解析密钥URL: {} - 错误: {}",
-                                        ki.uri,
-                                        e
-                                    ))
-                                }
-                            }
-                        }
-                    };
-                    let mut key_bytes = client.get(key_url).send().await?.bytes().await?.to_vec();
-                    // 确保密钥长度为16字节（AES-128要求）
-                    if key_bytes.len() > 16 {
-                        key_bytes.truncate(16);
-                    } else if key_bytes.len() < 16 {
-                        // 如果密钥长度不足16字节，用0填充
-                        key_bytes.resize(16, 0);
-                    }
-                    let iv_str = ki.iv.clone().unwrap_or_else(|| format!("0x{:032x}", i));
-                    let mut iv_bytes = match hex::decode(iv_str.trim_start_matches("0x")) {
-                        Ok(bytes) => bytes,
-                        Err(e) => return Err(anyhow!("无法解析IV值: {} - 错误: {}", iv_str, e)),
-                    };
-
-                    // 确保IV长度为16字节（AES-128要求）
-                    if iv_bytes.len() > 16 {
-                        iv_bytes.truncate(16);
-                    } else if iv_bytes.len() < 16 {
-                        // 如果IV长度不足16字节，用0填充
-                        iv_bytes.resize(16, 0);
-                    }
-                    (Some(key_bytes), Some(iv_bytes))
-                } else {
-                    (None, None)
-                };
+                // 转换Option<Vec<u8>>到Option<&[u8]>
+                let key_slice = key_clone.as_deref();
+                let iv_slice = iv_clone.as_deref();
 
                 match download_segment(
                     client.clone(),
                     &segment_url,
                     &output_path,
-                    key.as_deref(),
-                    iv.as_deref(),
+                    key_slice,
+                    iv_slice,
                 )
                 .await
                 {
@@ -142,6 +112,40 @@ pub async fn download_segments(
             Err(e) => Err(anyhow!("Tokio task failed: {}", e)),
         })
         .collect()
+}
+
+async fn get_key_iv(
+    client: Arc<Client>,
+    base_url: Url,
+    key_info: Option<KeyInfo>,
+) -> Result<(Option<Vec<u8>>, Option<Vec<u8>>)> {
+    if let Some(ki) = key_info {
+        let key_url = match Url::parse(&ki.uri) {
+            Ok(url) => url,
+            Err(_) => {
+                // 尝试将key URI作为相对URL处理
+                base_url.join(&ki.uri).map_err(|e| anyhow!("无法解析密钥URL: {} - 错误: {}", ki.uri, e))?
+            }
+        };
+        
+        let mut key_bytes = client.get(key_url).send().await?
+            .bytes().await?
+            .to_vec();
+        
+        // 确保密钥长度为16字节（AES-128要求）
+        key_bytes.resize_with(16, Default::default); // Truncates or pads with 0s to 16 bytes
+
+        let iv_str = ki.iv.clone().unwrap_or_else(|| "0x00000000000000000000000000000000".to_string());
+        let mut iv_bytes = hex::decode(iv_str.trim_start_matches("0x"))
+            .map_err(|e| anyhow!("无法解析IV值: {} - 错误: {}", iv_str, e))?;
+
+        // 确保IV长度为16字节（AES-128要求）
+        iv_bytes.resize_with(16, Default::default); // Truncates or pads with 0s to 16 bytes
+
+        Ok((Some(key_bytes), Some(iv_bytes)))
+    } else {
+        Ok((None, None))
+    }
 }
 
 /// 下载单个分段
